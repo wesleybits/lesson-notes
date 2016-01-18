@@ -78,8 +78,8 @@
 (define (tree-fib n)
   (cond [(= n 0) 0]
         [(= n 1) 1]
-        [else (+ (fib (- n 1))
-                 (fib (- n 2)))]))
+        [else (+ (tree-fib (- n 1))
+                 (tree-fib (- n 2)))]))
 
 ;;; when finding out the 5th Fibbonacci, our computation will look like this:
 ;; (tree-fib 5) ->
@@ -119,7 +119,7 @@
 ;;          0))
 ;;    (+ (+ 1
 ;;          0)
-;;       1)) ->
+;;       1))
 ;; [ we're done branching, now it's time to collapse because we've got to all our leaves. ]
 
 ;; (+ (+ (+ 1
@@ -131,14 +131,32 @@
 ;;       1)) ->
 
 ;; (+ (+ 2
+;;       (+ 1
+;;          0))
+;;    (+ (+ 1
+;;          0)
+;;       1)) ->
+
+;; (+ (+ 2
 ;;       1)
+;;    (+ (+ 1
+;;          0)
+;;       1)) ->
+
+;; (+ 3
+;;    (+ (+ 1
+;;          0)
+;;       1)) ->
+
+;; (+ 3
 ;;    (+ 1
 ;;       1)) ->
 
 ;; (+ 3
 ;;    2) ->
 
-;; 5
+;; 5 ->
+
 
 ;;; As you see, every time tree-fib was applied, it nearly always
 ;;; calls itself two more times! This gets gross fast. The tree
