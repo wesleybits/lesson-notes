@@ -172,9 +172,9 @@
 (define (tail-call-fib n)
   (define (fib-iter cur next counter)
     (if (= counter n) cur
-        (fib-counter next
-                     (+ cur next)
-                     (add1 counter))))
+        (fib-iter next
+                  (+ cur next)
+                  (add1 counter))))
   (fib-iter 0 1 0))
 
 ;;; How it works:
@@ -196,7 +196,7 @@
 ;;; contrast, give us short-cuts like memoization. We'll cover
 ;;; memoization later when we get to data abstractions.
 
-;;; Now it time for: STUPID RACKET TRICKS!
+;;; Now it's time for: STUPID RACKET TRICKS!
 
 ;;; Where I show you how to count change using nothing more than what
 ;;; I showed you!
@@ -252,11 +252,11 @@
                        kinds-of-coins))]))
 
   (define (first-denomination kinds-of-coins)
-    (cond [(>= n-kinds-of-coins 5) 50]
-          [(= n-kinds-of-coins 4) 25]
-          [(= n-kinds-of-coins 3) 10]
-          [(= n-kinds-of-coins 2) 5]
-          [(<= n-kinds-of-coins 1) 1]))
+    (cond [(>= kinds-of-coins 5) 50]
+          [(= kinds-of-coins 4) 25]
+          [(= kinds-of-coins 3) 10]
+          [(= kinds-of-coins 2) 5]
+          [(<= kinds-of-coins 1) 1]))
 
   (cc-iter amount 5))
 
@@ -264,7 +264,8 @@
 ;;; change with a number of cents, it's a tree recursive process. Go
 ;;; ahead and use it to change a dollar:
 
-; (count-change 100) ; commented to avoid long compile-times with this file. uncomment at your own peril.
+; (count-change 100)
+; 292 -> doesn't take much time, right?
 
 ;;; Took a while, didn't it?
 
@@ -369,11 +370,12 @@
 
 ;;; If you're wondering who Knuth is, he's the guy who set up computer
 ;;; science as a serious field of study. He's basically saying that
-;;; obsessing over optimization is a pretty miserable thing to
-;;; do. It's much more important that your code works right. Once it's
-;;; working right, then you can worry about making it work fast, but
-;;; don't invest too much time on it; you'll often find yourself
-;;; needing to write more code sooner than you think.
+;;; obsessing over optimization in the wrong places is a pretty
+;;; miserable thing to do. It's much more important that your code
+;;; works right. Once it's working right, then you can worry about
+;;; making it work fast, but don't invest too much time on it; you'll
+;;; often find yourself needing to write more code sooner than you
+;;; think.
 
 ;;; Now, don't dispair too much if you can't figure out a way to make
 ;;; something like a tree-recursive function faster; sometimes it's
