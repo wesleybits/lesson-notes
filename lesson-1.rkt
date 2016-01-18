@@ -81,8 +81,6 @@
 ;; right, you have to TELL Dr. Racket that you want to use
 ;; Racket. This implies something interesting about Racket...
 
-;; A7BA9EC
-
 ;; SYNTAX!
 ;; Racket has numbers!  ALL OF THEM!
 ;; positive integers
@@ -96,7 +94,7 @@
                                         ; not that remarkable, either; everyone has it.
 ;; negative integers (all integers)
 -20                                     ; temperature where spit freezes before it hits the ground
--38                                     ; temperature where murcury freezes
+-38                                     ; temperature where mercury freezes
 -297                                    ; freezing temperature of oxygen
 -455                                    ; ambient temperature of space
 -460                                    ; the absolute bottom end of temperature
@@ -208,7 +206,7 @@ rest                                    ; returns everything but the first thing
 ;;; model works for all procedures, only special forms are the
 ;;; exception.
 
-;; Some exercises to chew on while I get my act togetner:
+;; Some exercises to chew on while I get my act together:
 (+ (* 3 3) (* 4 4))
 ;;; This gives 25.  Show how Racket comes to this result.
 
@@ -347,7 +345,7 @@ x                                       ; gives 15
 
 ;;; `if` evaluates it's predicate first, and then returns what
 ;;; expression it should based on that result. The returned expression
-;;; then proceedes normally.
+;;; then proceeds normally.
 
 ;;; There's also `cond`:
 ;;; (cond [<predicate1> <result1>]
@@ -373,7 +371,7 @@ x                                       ; gives 15
 ;;; It's useful to think of `cond` as a kind of shorthand for the
 ;;; usual if-else-if code structure that other languages use.
 
-;;; Guess what?  Now you know enough to solve almost any mathematic
+;;; Guess what?  Now you know enough to solve almost any mathematical
 ;;; problem. Don't believe me?
 
 ;;; STUPID RACKET TRICKS: solving square roots using nothing but what
@@ -390,7 +388,16 @@ x                                       ; gives 15
 ;;; if not, set y to (x/y + y)/2 and do over
 
 ;;; Though this doesn't cover for complex results, it'll still work
-;;; provided we handle that case. I won't for this example.
+;;; provided we handle that case.
+
+(define (my-sqrt x)
+  (* (if (< x 0) 0+1i 1)
+     (my-sqrt-iter (abs x) 0.1 0.0001)))
+
+(define (my-sqrt-iter x guess err)
+  (if (close-enough? x guess err)
+      guess
+      (my-sqrt-iter x (next-guess x guess) err)))
 
 (define (close-enough? x guess err)
   (< (abs (- guess (/ x guess)))
@@ -400,23 +407,20 @@ x                                       ; gives 15
   (/ (+ guess (/ x guess))
      2))
 
-(define (my-sqrt x guess err)
-  (if (close-enough? x guess err)
-      guess
-      (my-sqrt x (next-guess x guess) err)))
-
 (my-sqrt 4 1.0 0.00001) ; returns 2.00000... with some junk after that
 
 ;;; This is how it evaluates. I skip the parameter application step to
 ;;; help make things brief. If you don't know how application works,
 ;;; then see me later.
 
-;; (my-sqrt 4 1.0 0.00001) ->
+;; (my-sqrt 4) ->
+
+;; (my-sqrt-iter 4 0.1 0.00001) ->
 
 ;; ((λ (x guess err)
 ;;    (if (close-enough? x guess err)
 ;;        guess
-;;        (my-sqrt x (next-guess x guess) err)))
+;;        (my-sqrt-iter x (next-guess x guess) err)))
 ;;  4 1.0 0.00001) ->
 
 ;; (if (close-enough? 4 1.0 0.0001)
@@ -428,85 +432,70 @@ x                                       ; gives 15
 ;;           err))
 ;;      4 1.0 0.00001)
 ;;     1.0
-;;     (my-sqrt 4 (next-guess 4 1.0) 0.00001)) ->
+;;     (my-sqrt-iter 4 (next-guess 4 1.0) 0.00001)) ->
 
 ;; (if (< (abs (- 1 (/ 4 1.0)))
 ;;        0.00001)
 ;;     1.0
-;;     (my-sqrt 4 (next-guess 4 1.0) 0.00001)) ->
+;;     (my-sqrt-iter 4 (next-guess 4 1.0) 0.00001)) ->
 
 ;; (if #false
 ;;     1.0
-;;     (my-sqrt 4 (next-guess 4 1.0) 0.00001)) ->
+;;     (my-sqrt-iter 4 (next-guess 4 1.0) 0.00001)) ->
 
-;; (my-sqrt 4 (next-guess 4 1.0) 0.00001) ->
+;; (my-sqrt-iter 4 (next-guess 4 1.0) 0.00001) ->
 
-;; (my-sqrt 4
-;;          ((λ (x guess)
-;;             (/ (+ guess (/ x guess))
-;;                2))
-;;           4 1.0)
-;;          0.00001) ->
+;; (my-sqrt-iter 4
+;;               ((λ (x guess)
+;;                  (/ (+ guess (/ x guess))
+;;                     2))
+;;                4 1.0)
+;;               0.00001) ->
 
-;; (my-sqrt 4
-;;          (/ (+ 1 (/ 4 1.0))
-;;             2)
-;;          0.00001) ->
+;; (my-sqrt-iter 4
+;;               (/ (+ 1 (/ 4 1.0))
+;;                  2)
+;;               0.00001) ->
 
-;; (my-sqrt 4 2.5 0.00001) -> ... and so on, until a result is found.
+;; (my-sqrt-iter 4 2.5 0.00001) -> ... and so on, until a result is found.
 
-;;; We can do better: Enter BLACK BOXING
+;;; We can do better: Enter BLACKBOXING
 
-;;; So, my-sqrt uses two other functions to do it's work,
-;;; close-enough? and next-guess. These functions really don't make a
-;;; ton of sense outside the context of finding square roots. Is there
-;;; a way to hide them, so that we con't confuse anybody who uses our
-;;; code?
+;;; So, my-sqrt uses three other functions to do it's work,
+;;; close-enough?, next-guess, and my-sqrt-iter. These functions
+;;; really don't make a ton of sense outside the context of finding
+;;; square roots. Is there a way to hide them so that we don't confuse
+;;; anybody who uses our code?
 
 ;;; Indeed there is:
 
-(define (my-blackboxed-sqrt x guess err)
-  (define (next-guess)
-    (/ (+ guess
-          (/ x guess))
-       2))
+(define (my-blackboxed-sqrt x)
+  (define (my-sqrt-iter x guess err)
+    (if (close-enough? x guess err)
+        guess
+        (my-sqr-itert x (next-guess x guess) err)))
 
-  (define (close-enough?)
-    (< (abs (- guess
-               (/ x guess)))
+  (define (close-enough? x guess err)
+    (< (abs (- guess (/ x guess)))
        err))
 
-  (if (close-enough)
-      guess
-      (my-blackboxed-sqrt x (next-guess) err)))
-
-;;; However, this does open up a new way we can do things. As you see
-;;; with Racket's sqrt function, we don't need to provide it a first
-;;; guess and an error margin in order to use it. This makes Racket's
-;;; sqrt function easier to use than our own. We can fix that:
-
-(define (my-abstracted-blackboxed-sqrt x)
-  (define (next-guess cur-guess)
-    (/ (+ cur-guess
-          (/ x cur-guess))
+  (define (next-guess x guess)
+    (/ (+ guess (/ x guess))
        2))
 
-  (define (close-enough? cur-guess err)
-    (< (abs (- cur-guess
-               (/ x cur-guess)))
-       err))
+  (* (if (< x 0) 0+1i 1)
+     (my-sqrt-iter (abs x) 0.1 0.0001)))
 
-  (define (my-sqrt-iter cur-guess err)
-    (if (close-enough? cur-guess err)
-        cur-guess
-        (my-sqrt-iter (next-guess cur-guess) err)))
+;;; This is called blackboxing, just one strategy in
+;;; encapsulation. Encapsulation is the practice of programming in
+;;; such a way that you prevent parts of a program from fiddling with
+;;; the guts of other parts. That also includes calling into functions
+;;; that don't make much sense for them to use. Racket also has other
+;;; methods of containing and encapsulating code, like units, modules
+;;; and language modes, that we'll learn about as they become
+;;; important.
 
-  (my-sqrt-iter 1.0 0.00001))
-
-;;; In both of these examples, we get to see that the inner functions
-;;; get to use the parameters of the outer functions.
-
-;;; Some useful operations:
+;;; Some other useful operations you'll see later:
 
 ;;; (or <predicate1> <predicate2> ... <predicateN>)
 ;;; (and <predicate1> <predicate2> ... <predicateN>)
@@ -525,16 +514,12 @@ x                                       ; gives 15
 ;;; couple of Racket's stranger idioms, some that you will be seeing
 ;;; in the future.
 
-;;; Programming Language idioms, but the way, are just like natural
+;;; Programming Language idioms, by the way, are just like natural
 ;;; languge idioms (raining cats and dogs; penny for your thoughts;
 ;;; add insult to injury, and so on). They don't mean much outside the
 ;;; language that owns them, and Racket, being a youngest daughter in
 ;;; the oldest family of programming languages, inherited TONS of them
 ;;; (let ever lambda; and-guards; or-defaults; syntax transformers;
 ;;; anaphors; continuations; combinatorials, and the list JUST GOES
-;;; ON).
-
-;;; Next time we'll expore one such idiom that's fundamental to nearly
-;;; all programming languages: combinatorials and higher-order
-;;; procedures.
+;;; ON). Next we'll discuss recursion, time, and space.
 
