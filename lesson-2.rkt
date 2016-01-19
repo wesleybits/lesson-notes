@@ -267,8 +267,6 @@
 ; (count-change 100)
 ; 292 -> doesn't take much time, right?
 
-;;; Took a while, didn't it?
-
 ;;; Is there a better way of doing this? There is, but we'll need to
 ;;; make something of a lookup table, or some kind of way to handle a
 ;;; growing number of values at once. We'll revisit this later, when

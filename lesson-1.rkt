@@ -392,7 +392,7 @@ x                                       ; gives 15
 
 (define (my-sqrt x)
   (* (if (< x 0) 0+1i 1)
-     (my-sqrt-iter (abs x) 0.1 0.0001)))
+     (my-sqrt-iter (abs x) 0.1 0.00001)))
 
 (define (my-sqrt-iter x guess err)
   (if (close-enough? x guess err)
@@ -407,7 +407,7 @@ x                                       ; gives 15
   (/ (+ guess (/ x guess))
      2))
 
-(my-sqrt 4 1.0 0.00001) ; returns 2.00000... with some junk after that
+(my-sqrt 4) ; returns 2.00000... with some junk after that
 
 ;;; This is how it evaluates. I skip the parameter application step to
 ;;; help make things brief. If you don't know how application works,
@@ -473,7 +473,7 @@ x                                       ; gives 15
   (define (my-sqrt-iter x guess err)
     (if (close-enough? x guess err)
         guess
-        (my-sqr-itert x (next-guess x guess) err)))
+        (my-sqrt-iter x (next-guess x guess) err)))
 
   (define (close-enough? x guess err)
     (< (abs (- guess (/ x guess)))
