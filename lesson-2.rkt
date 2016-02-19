@@ -35,9 +35,10 @@
 ;;; recursion". Now note that we put bigger numbers into it, it'll
 ;;; take up more space and might cause memory errors. You see, the
 ;;; stuff in that outward expansion needs to live someplace, and that
-;;; backwards collapse does take time (but not much). Most of the time
-;;; you can avoid doing this by having some parameter in your iterator
-;;; function keep track of your results so far.
+;;; backwards collapse does take time (but not much).
+
+;;; Now, if we were to keep track of our result so far in the
+;;; iteration, it would look something like this:
 
 (define (tail-call-factorial x)
   (define (fact-iter cur-x result-sofar) ; blackboxing, because fact-iter makes no sense outside factorial fn
@@ -66,9 +67,9 @@
 ;;; Tail-call recursion is preferred over linear recursion because of
 ;;; the space and time savings you get with it.
 
-;;; The more damning of all kinds of iteration is tree
-;;; recursion. Here's an example of a tree-recursive function,
-;;; computing values in the Fibbonacci Sequence:
+;;; The most expensive of all kinds of iteration is tree
+;;; recursion. Here's an example of a tree-recursive function that
+;;; computes values in the Fibbonacci Sequence:
 
 ;;; 1 1 2 3 5 8 ...
 ;;; F(x) := if x = 0 then 0
@@ -159,20 +160,31 @@
 
 
 ;;; As you see, every time tree-fib was applied, it nearly always
-;;; calls itself two more times! This gets gross fast. The tree
-;;; doubles every time tree-fib's argument goes up by 1! Also notice
-;;; that it's computing the same problem more than once. Excatly how
-;;; many times do we need to figure out the 2nd fibbonacci?
+;;; calls itself two more times. For every next biggest Fibbonacci you
+;;; want to find, the time the procedure takes to finish basically
+;;; doubles. At large enough numbers, this doubling per next
+;;; Fibbonacci gets to be expensive.
 
-;;; tree-fib is a pretty grody way to figure out fibbonaccis. Is there
-;;; a way to fix this? (there is!)
+;;; tree-fib looks like a pretty gross way to find Fibbonaccis. Let's
+;;; see if we can do better.
+
+;;; To help prime our brains, let's look at the sequence. Maybe the
+;;; first 10 numbers or so.
+
+;;; 1 1 2 3 5 8 11 19 30 49
+
+;;; See that we can look at this the other way? Since a Fibbonacci is
+;;; the sum of the two Fibbonaccis that came before it, maybe it would
+;;; be faster to work our way up to the Fibbonacci we want.  That way,
+;;; all we need to do is keep track of two Fibbonaccis as we move
+;;; along the sequence, and where we are in that sequence.
 
 ;; The solution:
 
 (define (tail-call-fib n)
   (define (fib-iter cur next counter)
     (if (= counter n) cur
-        (fib-iter next
+        (fib-iter cur
                   (+ cur next)
                   (add1 counter))))
   (fib-iter 0 1 0))
@@ -191,10 +203,195 @@
 ;;; flip the process over on it's head and work backwards, passing
 ;;; into each iteration the results from before. The methods used to
 ;;; do this are their own style of coding, called Dynamic
-;;; Programming. Dynamic Programming can be hard to do in other, more
-;;; popular imperative languages. Functional languages like Racket, in
-;;; contrast, give us short-cuts like memoization. We'll cover
-;;; memoization later when we get to data abstractions.
+;;; Programming. It's a serious style that some dedicate a great deal
+;;; of time trying to master.
+
+;;; Just know that when we're doing Dynamic Programming, we often
+;;; trade memory for speed. Sometimes this trade is crucial, like The
+;;; Traveling Salesman Problem. Sometimes this trade is unfair so that
+;;; you get a little bit of extra speed by spending tons of space,
+;;; like The Traveling Salesman Problem.
+
+;;; For a taste of something a little more advanced, here's a look at
+;;; two solutions to that problem.
+
+;;; Brace yourself, this is unfiltered Racket.
+
+;;; struct creates custom data structures with accessors and
+;;; idendifiers
+(struct point (name x y))
+
+(define (distance point-1 point-2)
+  ;; sqr does squares
+  (sqrt (+ (sqr (- (point-x point-1)
+                   (point-x point-2)))
+           (sqr (- (point-y point-1)
+                   (point-y point-2))))))
+
+(define (simple-tour starting-point points)
+  (define (distance-of-tour points)
+    (cond [(empty? points)      0]
+          [(= 1 (count points)) 0]
+          [else
+           ;; apply and map lets me operate on lists. apply will apply
+           ;; a list to a function just as though it were droped into
+           ;; the front of the list and then evaluated. map lets me
+           ;; transform each element in a list, or create a new list
+           ;; by iterating across many lists simultaneously.
+           (apply + (map distance
+                         (drop-right points 1)
+                         (rest points)))]))
+
+  (define (shortest-tour tour1 tour2)
+    ;; let lets me create local bindings that do not leak. define may
+    ;; appear to do that, but define definitions are both completely
+    ;; immutable and can leak in some cases (like when under a
+    ;; let). let bindings don't do either.
+    (let ([tour1-dist (distance-of-tour tour1)]
+          [tour2-dist (distance-of-tour tour2)])
+      (if (<= tour1-dist tour2-dist)
+          tour1
+          tour2)))
+
+  (define (loop-tour ps)
+    ;; append stiches lists together, end-to-end.
+    (append (list starting-point) ps (list starting-point)))
+
+  ;; stream-map is like normal map, but for lazy streams.
+  ;; sequence->stream transforms a sequence generator into a stream.
+  ;; in-permutations generates all different orderings of a list, one
+  ;; at a time.
+  (let ([all-tours (stream-map loop-tour
+                               (sequence->stream
+                                (in-permutations points)))])
+
+    ;; stream-fold applies a reducer function against an accumulator
+    ;; and a stream.
+    (map point-name
+         (stream-fold shortest-tour
+                      (stream-first all-tours)
+                      (stream-rest all-tours)))))
+
+;;; require lets one yank in Racket libraries, tools, utilities, and
+;;; project files for use here. racket/generators lets us create value
+;;; pumps that work nicely with sequences.
+(require racket/generator)
+
+;;; This creates a sequence generator for powers of 2
+(define (bits)
+  (in-generator
+   (let loop ([cur-bit (yield 1)])
+     (loop (yield (arithmetic-shift cur-bit 1))))))
+
+;;; HA HA, LOL. This code is a mess, but it's the fastest of the two.
+(define (fastish-tour starting-point points)
+
+  (let* (;; list->vector changes a list into a vector
+         [point-vector (list->vector (cons starting-point points))]
+         ;; expt does exponents; vector-length gives back the length of a vector
+         [max-points-pick (sub1 (expt 2 (vector-length point-vector)))]
+         [distance-matrix
+          ;; make-hash makes hash tables.
+          (make-hash
+           ;; this is a for-loop tuned to collect stuff into a list.
+           (for*/list ([i (in-range 0 (vector-length point-vector))]
+                       [j (in-range i (vector-length point-vector))])
+             (cons (cons i j)
+                   ;; vector-ref lets you get at stuff inside a vector
+                   (distance (vector-ref point-vector i)
+                             (vector-ref point-vector j)))))]
+         [costs (make-hash)])
+
+    (define (dist i j)
+      ;; example of an or-default; hash-ref lets you get a stuff inside a hash table.
+      (or (hash-ref distance-matrix (cons i j))
+          (hash-ref distance-matrix (cons j i))))
+
+    (define (pick picks)
+      ;; another for-loop, but this one puts things into a set.
+      (for/set ([bit (bits)]
+                [idx (in-naturals 0)]
+                #:break (> bit picks)
+                #:unless (= 0 (bitwise-and bit picks)))
+        idx))
+
+    (define (unpick picks)
+      ;; another for-loop, but this one adds up it's collected values.
+      (for/sum ([bit (bits)]
+                [idx (in-naturals 0)]
+                #:break (> idx (apply max (set->list picks)))
+                #:when (set-member? picks idx))
+        bit))
+
+    (define (cost s k)
+      ;; hash-ref pulls stuff out of a hash-table
+      (hash-ref costs (cons s k)))
+
+    (define (set-cost! s k c)
+      ;; hash-set! puts things into a hash-table
+      (hash-set! costs (cons s k) c))
+
+    ;; The next two uses of define create curried functions, or
+    ;; functions that don't need to consume all their arguments at
+    ;; once.
+    (define ((applicable-key path to-visit) k)
+      (and (not (member (cdr k) path))
+           (= to-visit (length (car k)))))
+
+    (define ((minimum-key path) k1 k2)
+      (if (< (+ (dist (first path) (cdr k1))
+                (hash-ref costs k1))
+             (+ (dist (first path) (cdr k2))
+                (hash-ref costs k2)))
+          k1
+          k2))
+
+    (define all-picks-in-order
+      (sort
+       ;; another for-loop that returns a list
+       (for/list ([picks (in-range #b111 max-points-pick)]
+                   #:when (= 1 (bitwise-and picks 1)))
+         (pick picks))
+       (λ (l1 l2)
+         (< (set-count l1)
+            (set-count l2)))))
+
+    ;; This for-loop returns nothing. It's used to prime the costs
+    ;; table.
+    (for ([k (in-range 1 (vector-length point-vector))])
+      (set-cost! (set 0 k) k (dist 0 k)))
+
+    ;; This is another for-loop that returns nothing, and it's used to
+    ;; fill the costs table all the way.
+    (for* ([picked (in-list all-picks-in-order)]
+           [k (in-set picked)])
+      (let* ([picked-k (set-remove picked k)]
+             [dists (map (λ (m) (+ (dist m k) (cost picked-k m)))
+                         (set->list (set-remove picked-k 0)))])
+        (set-cost! picked k (apply min dists))))
+
+    ;; This is a named let, it's like a normal let statement, but I
+    ;; can treat it like a function for the purposes of recursion and
+    ;; iteration. This is used to work backwards through the now full
+    ;; costs table to find the best tour.
+    (let backtrack ([path '(0)]
+                    [to-visit (sub1 (vector-length point-vector))])
+      (if (zero? to-visit)
+          (map (compose point-name (curry vector-ref point-vector))
+               (cons 0 path))
+          (let* ([keys-to-consider
+                  (filter (applicable-key path to-visit)
+                          (hash-keys costs))]
+                 [minimal-key
+                  (if (= 1 (length keys-to-consider))
+                      (first keys-to-consider)
+                      (foldl (minimum-key path)
+                             (first keys-to-consider)
+                             (rest keys-to-consider)))]
+                 [next (cdr minimal-key)])
+            (backtrack (cons next path)
+                       (sub1 to-visit)))))))
+
 
 ;;; Now it's time for: STUPID RACKET TRICKS!
 
@@ -235,9 +432,11 @@
 ;;; if amount = 0 then 1
 ;;; if amount < 0 then 0
 ;;; if kinds-of-coins = 0 then 0
-;;; else (count-change (amount - highest-available-coin)) + (count-change amount without-the-highest-coin)
+;;; else (count-change (amount - highest-available-coin)) +
+;;;                    (count-change amount without-the-highest-coin)
 
 ;;; In Racket:
+
 
 (define (count-change amount)
   (define (cc-iter amount kinds-of-coins)
@@ -337,14 +536,14 @@
 
 ;;; Looking at exercise 1.11 in the SICP, you'll be asked to write
 ;;; this function, then optomize it. This function, as it stands, as
-;;; O(3^n) time, and takes up O(3^n) space. If you take a hard look at
-;;; it, you'll see that this is not a tail-call, so memory is used for
-;;; every recursion. Every application of the sussmann function
-;;; creates three more calls! For every 1 n, we get 3 more sussmanns
-;;; out if it, which compound with the new values that it makes. If a
-;;; function is tree-recursive, then counting the number of branches
-;;; it makes per iteration helps you find the base for your Big O
-;;; estimate.
+;;; O(2^n) time, and takes up about O(2^n) space. If you take a hard
+;;; look at it, you'll see that this is not a tail-call, so memory is
+;;; used for every recursion. Every application of the sussmann
+;;; function creates three more calls! For every 1 n, we get 3 more
+;;; sussmanns out if it, which compound with the new values that it
+;;; makes. You might say that this would be O(3^n) because it tripples
+;;; itself every step, and you'd be right. Big O, though, gives us the
+;;; flexibility to both be right-ish. It's an estimate.
 
 ;;; linear recursive triangular numbers:
 
