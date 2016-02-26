@@ -1,27 +1,10 @@
 #lang slideshow
+
 (require pict/color
-         slideshow/text)
+         slideshow/text
+         "util/presentations.rkt")
 
 (current-main-font 'system)
-
-(define (rect w h)
-  (filled-rectangle w h #:draw-border? #f))
-
-(define (title title-text subtitle)
-  (let ([subtitle-pict (small (t subtitle))])
-    (vc-append
-     (t title-text)
-     (vc-append
-      (blank client-w 5)
-      (colorize (rect client-w 5)
-                (dark "CornflowerBlue"))
-      (cc-superimpose
-       (colorize (rect client-w (+ 20 (pict-height subtitle-pict)))
-                 "CornflowerBlue")
-       subtitle-pict)))))
-
-(define (small-subitem . stuff)
-  (small (apply subitem stuff)))
 
 (slide #:title (title "Getting Started..."
                       "This is what we're gonna cover")
@@ -113,4 +96,4 @@
 (slide #:title (title "Before we get going"
                       "This presentation was made with Racket")
        (bitmap "images/racket-logo.jpeg"))
-       
+
