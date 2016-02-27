@@ -96,15 +96,13 @@
 ;;; ANYWAY. To get a reasonable approximation of this friendless
 ;;; number, we can evaluate the form:
 
-;;; (integrate 1 999000000 euler-mascheroni 0.0000001)
+; (integrate 1 100000 euler-mascheroni 0.0001)
 
-;;; This takes an awful long time to do. Little-gamma apparently
-;;; doesn't own a phone and so only responds to written correspondence
-;;; on attractive stationary. Little-gamma asserts that she's quirky,
-;;; but Avogadro's Number says that she's a pain in the ass.
-;;; Avogadro's Number is right, so let's define a place to stick her
-;;; so we don't need to write such prose every time we want to summon
-;;; up little-gamma.
+;;; This takes an awful long time to do. Define someplace to put
+;;; little-gamma so we don't have to deal with this awfulness more
+;;; than once. Bonus points if you use "delay". More bonus points if
+;;; you looked it up. Even more bonus points if you've got the docs
+;;; open when you asked me about it.
 
 ;;;;;;;;;;;;;;;;;;
 ;;; PROCEDURES ;;;
@@ -168,8 +166,8 @@
   (+ x y))
 
 ;;; This will take three for its three parameters.
-(define (in-order? littlest middle biggest)
-  (< littlest middle biggest))
+(define (in-order? littlest middlest biggest)
+  (< littlest middlest biggest))
 
 ;;; Now let's practice defining functions.
 
@@ -214,11 +212,9 @@
 ;;; You probably noticed that you've done more problems relating to
 ;;; defining procedures than values. Defining values is nice and all,
 ;;; and useful if you want to have some constants that are easily
-;;; tweakable in your code. However, defining procedures is the where
-;;; you'll run into the most grief.  This grief is useful, errors in
-;;; your code are normal and nobody's a perfect programmer.  It's
-;;; often a frustrating task, but it's just so nice when you have
-;;; something working.
+;;; tweakable in your code. However, defining procedures is what
+;;; you'll be doing most frequently.  You will need to be able to do
+;;; this before we can move on to more useful things.
 
 ;;; You probably noticed that I'm deferring you to Google rather
 ;;; frequently. It's not just that I'm too lazy to actually explain
