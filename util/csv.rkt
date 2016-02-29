@@ -3,7 +3,9 @@
          parser-tools/yacc
          (prefix-in : parser-tools/lex-sre))
 
-(define (write-csv-table table [out (current-output-port)])
+;;; CSV MAKERS
+
+(define (write-csv table [out (current-output-port)])
   ((compose
     (λ (csv) (display csv out))
     (λ (rows) (string-join rows "\n"))
@@ -12,9 +14,9 @@
                 (curry map csv-escape))))
    table))
 
-(define (table->csv filename table)
+(define (table->csv table filename)
   (with-output-to-file filename #:mode 'text #:exists 'replace
-    (λ () (write-csv-table table))))
+    (λ () (write-csv table))))
 
 (define (csv-escape thing)
   (cond [(and (string? thing)
@@ -26,7 +28,11 @@
         [(and (string? thing)
               (string=? "" thing))
          "\"\""]
+        [(not thing)
+         "\"\""]
         [else (~a thing)]))
+
+;;; CSV PARSER
 
 (define csv-unescape
   (compose (λ (s) (regexp-replace* #px"\r\n" s "\n"))
@@ -36,8 +42,9 @@
 
 (define-tokens csv-data
   (DATUM))
+
 (define-empty-tokens csv-terminals
-  (EOF NEWLINE COMMA))
+  (EOF NEWLINE COMMA EMPTY))
 
 (define csv-lexer
   (lexer
@@ -47,12 +54,14 @@
     (token-EOF)]
    [(:or "\n" "\r\n")
     (token-NEWLINE)]
-   [(:: #\" (:* (:or (:: #\" #\")
+   [(:: #\" (:+ (:or (:: #\" #\")
                      (:~ #\")))
         #\")
     (token-DATUM (or (string->number
                       (substring lexeme 1 (sub1 (string-length lexeme))))
                      (csv-unescape lexeme)))]
+   ["\"\""
+    (token-EMPTY)]
    [(:+ (:~ #\, #\newline #\return))
     (token-DATUM (or (string->number lexeme)
                      lexeme))]))
@@ -61,29 +70,30 @@
   (parser
    (tokens csv-data csv-terminals)
    (grammar
-    [table ((row NEWLINE table) (cons $1 $3))
-           ((row NEWLINE)       (list $1))
-           ((row)               (list $1))]
-    [row ((DATUM COMMA row) (cons $1 $3))
-         ((COMMA row)       (cons "" $2))
-         ((DATUM)           (list $1))
-         ((COMMA)           (list "" ""))])
+    (table [(row NEWLINE table) (cons $1 $3)]
+           [(row NEWLINE)       (list $1)]
+           [(row)               (list $1)])
+    (row [(DATUM COMMA row) (cons $1 $3)]
+         [(EMPTY COMMA row) (cons #f $3)]
+         [(COMMA row)       (cons #f $2)]
+         [(DATUM)           (list $1)]
+         [(EMPTY)           (list #f)]
+         [(COMMA)           (list #f #f)]))
    (start table)
    (end EOF)
-   (error (λ (bool-1 thing bool-2)
-            (displayln thing)))))
+   (error (λ args (void)))))
 
 (define (lex-this lexer input)
   (λ () (lexer input)))
 
-(define (read-csv-table [in (current-input-port)])
+(define (read-csv [in (current-input-port)])
   (csv-parser (lex-this csv-lexer in)))
 
 (define (csv->table filename)
   (with-input-from-file filename #:mode 'text
-    (λ () (read-csv-table))))
+    (λ () (read-csv))))
 
 (provide csv->table
          table->csv
-         write-csv-table
-         read-csv-table)
+         write-csv
+         read-csv)
