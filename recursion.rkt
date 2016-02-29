@@ -158,7 +158,6 @@
 
 ;; 5 ->
 
-
 ;;; As you see, every time tree-fib was applied, it nearly always
 ;;; calls itself two more times. For every next biggest Fibbonacci you
 ;;; want to find, the time the procedure takes to finish basically
@@ -204,193 +203,8 @@
 ;;; into each iteration the results from before. The methods used to
 ;;; do this are their own style of coding, called Dynamic
 ;;; Programming. It's a serious style that some dedicate a great deal
-;;; of time trying to master.
-
-;;; Just know that when we're doing Dynamic Programming, we often
-;;; trade memory for speed. Sometimes this trade is crucial, like The
-;;; Traveling Salesman Problem. Sometimes this trade is unfair so that
-;;; you get a little bit of extra speed by spending tons of space,
-;;; like The Traveling Salesman Problem.
-
-;;; For a taste of something a little more advanced, here's a look at
-;;; two solutions to that problem.
-
-;;; Brace yourself, this is unfiltered Racket.
-
-;;; struct creates custom data structures with accessors and
-;;; idendifiers
-(struct point (name x y))
-
-(define (distance point-1 point-2)
-  ;; sqr does squares
-  (sqrt (+ (sqr (- (point-x point-1)
-                   (point-x point-2)))
-           (sqr (- (point-y point-1)
-                   (point-y point-2))))))
-
-(define (simple-tour starting-point points)
-  (define (distance-of-tour points)
-    (cond [(empty? points)      0]
-          [(= 1 (count points)) 0]
-          [else
-           ;; apply and map lets me operate on lists. apply will apply
-           ;; a list to a function just as though it were droped into
-           ;; the front of the list and then evaluated. map lets me
-           ;; transform each element in a list, or create a new list
-           ;; by iterating across many lists simultaneously.
-           (apply + (map distance
-                         (drop-right points 1)
-                         (rest points)))]))
-
-  (define (shortest-tour tour1 tour2)
-    ;; let lets me create local bindings that do not leak. define may
-    ;; appear to do that, but define definitions are both completely
-    ;; immutable and can leak in some cases (like when under a
-    ;; let). let bindings don't do either.
-    (let ([tour1-dist (distance-of-tour tour1)]
-          [tour2-dist (distance-of-tour tour2)])
-      (if (<= tour1-dist tour2-dist)
-          tour1
-          tour2)))
-
-  (define (loop-tour ps)
-    ;; append stiches lists together, end-to-end.
-    (append (list starting-point) ps (list starting-point)))
-
-  ;; stream-map is like normal map, but for lazy streams.
-  ;; sequence->stream transforms a sequence generator into a stream.
-  ;; in-permutations generates all different orderings of a list, one
-  ;; at a time.
-  (let ([all-tours (stream-map loop-tour
-                               (sequence->stream
-                                (in-permutations points)))])
-
-    ;; stream-fold applies a reducer function against an accumulator
-    ;; and a stream.
-    (map point-name
-         (stream-fold shortest-tour
-                      (stream-first all-tours)
-                      (stream-rest all-tours)))))
-
-;;; require lets one yank in Racket libraries, tools, utilities, and
-;;; project files for use here. racket/generators lets us create value
-;;; pumps that work nicely with sequences.
-(require racket/generator)
-
-;;; This creates a sequence generator for powers of 2
-(define (bits)
-  (in-generator
-   (let loop ([cur-bit (yield 1)])
-     (loop (yield (arithmetic-shift cur-bit 1))))))
-
-;;; HA HA, LOL. This code is a mess, but it's the fastest of the two.
-(define (fastish-tour starting-point points)
-
-  (let* (;; list->vector changes a list into a vector
-         [point-vector (list->vector (cons starting-point points))]
-         ;; expt does exponents; vector-length gives back the length of a vector
-         [max-points-pick (sub1 (expt 2 (vector-length point-vector)))]
-         [distance-matrix
-          ;; make-hash makes hash tables.
-          (make-hash
-           ;; this is a for-loop tuned to collect stuff into a list.
-           (for*/list ([i (in-range 0 (vector-length point-vector))]
-                       [j (in-range i (vector-length point-vector))])
-             (cons (cons i j)
-                   ;; vector-ref lets you get at stuff inside a vector
-                   (distance (vector-ref point-vector i)
-                             (vector-ref point-vector j)))))]
-         [costs (make-hash)])
-
-    (define (dist i j)
-      ;; example of an or-default; hash-ref lets you get a stuff inside a hash table.
-      (or (hash-ref distance-matrix (cons i j))
-          (hash-ref distance-matrix (cons j i))))
-
-    (define (pick picks)
-      ;; another for-loop, but this one puts things into a set.
-      (for/set ([bit (bits)]
-                [idx (in-naturals 0)]
-                #:break (> bit picks)
-                #:unless (= 0 (bitwise-and bit picks)))
-        idx))
-
-    (define (unpick picks)
-      ;; another for-loop, but this one adds up it's collected values.
-      (for/sum ([bit (bits)]
-                [idx (in-naturals 0)]
-                #:break (> idx (apply max (set->list picks)))
-                #:when (set-member? picks idx))
-        bit))
-
-    (define (cost s k)
-      ;; hash-ref pulls stuff out of a hash-table
-      (hash-ref costs (cons s k)))
-
-    (define (set-cost! s k c)
-      ;; hash-set! puts things into a hash-table
-      (hash-set! costs (cons s k) c))
-
-    ;; The next two uses of define create curried functions, or
-    ;; functions that don't need to consume all their arguments at
-    ;; once.
-    (define ((applicable-key path to-visit) k)
-      (and (not (member (cdr k) path))
-           (= to-visit (length (car k)))))
-
-    (define ((minimum-key path) k1 k2)
-      (if (< (+ (dist (first path) (cdr k1))
-                (hash-ref costs k1))
-             (+ (dist (first path) (cdr k2))
-                (hash-ref costs k2)))
-          k1
-          k2))
-
-    (define all-picks-in-order
-      (sort
-       ;; another for-loop that returns a list
-       (for/list ([picks (in-range #b111 max-points-pick)]
-                   #:when (= 1 (bitwise-and picks 1)))
-         (pick picks))
-       (λ (l1 l2)
-         (< (set-count l1)
-            (set-count l2)))))
-
-    ;; This for-loop returns nothing. It's used to prime the costs
-    ;; table.
-    (for ([k (in-range 1 (vector-length point-vector))])
-      (set-cost! (set 0 k) k (dist 0 k)))
-
-    ;; This is another for-loop that returns nothing, and it's used to
-    ;; fill the costs table all the way.
-    (for* ([picked (in-list all-picks-in-order)]
-           [k (in-set picked)])
-      (let* ([picked-k (set-remove picked k)]
-             [dists (map (λ (m) (+ (dist m k) (cost picked-k m)))
-                         (set->list (set-remove picked-k 0)))])
-        (set-cost! picked k (apply min dists))))
-
-    ;; This is a named let, it's like a normal let statement, but I
-    ;; can treat it like a function for the purposes of recursion and
-    ;; iteration. This is used to work backwards through the now full
-    ;; costs table to find the best tour.
-    (let backtrack ([path '(0)]
-                    [to-visit (sub1 (vector-length point-vector))])
-      (if (zero? to-visit)
-          (map (compose point-name (curry vector-ref point-vector))
-               (cons 0 path))
-          (let* ([keys-to-consider
-                  (filter (applicable-key path to-visit)
-                          (hash-keys costs))]
-                 [minimal-key
-                  (if (= 1 (length keys-to-consider))
-                      (first keys-to-consider)
-                      (foldl (minimum-key path)
-                             (first keys-to-consider)
-                             (rest keys-to-consider)))]
-                 [next (cdr minimal-key)])
-            (backtrack (cons next path)
-                       (sub1 to-visit)))))))
+;;; of time trying to master. Don't be too put off if you don't get
+;;; it, not many coders ever do.
 
 
 ;;; Now it's time for: STUPID RACKET TRICKS!
@@ -474,8 +288,7 @@
 
 ;;; Or you can do it in your own time and we can compare answers
 ;;; later. Delve into the Racket Guide on your own to find out any
-;;; neat toys that'll help you make this faster. This is a hard
-;;; problem, so I don't blame you if you don't do it.
+;;; neat toys that'll help you make this faster.
 
 ;;; This discussion, so far, has badmouthed two ways of iteration and
 ;;; lauded another to be the end-all be-all of repeating yourself. I
@@ -521,7 +334,7 @@
 ;;; This is O(n) time and O(1) space. It never occupies more space
 ;;; than tracking the base, the exponent and the power computed so
 ;;; far. Since different inputs doesn't effect the amount of space
-;;; used, then spaced used is pretty much constant. The time taken
+;;; used, then the space used is pretty much constant. The time taken
 ;;; changes with the exponent's value, so say the exponent is some
 ;;; 'n', then the program will go through 'n' loops to compute the
 ;;; power. We say O(n) time to express this.
@@ -543,7 +356,7 @@
 ;;; sussmanns out if it, which compound with the new values that it
 ;;; makes. You might say that this would be O(3^n) because it tripples
 ;;; itself every step, and you'd be right. Big O, though, gives us the
-;;; flexibility to both be right-ish. It's an estimate.
+;;; flexibility for both be right-ish. It's an estimate.
 
 ;;; linear recursive triangular numbers:
 
@@ -582,5 +395,5 @@
 ;;; ways of writing great code that doesn't skimp on the beauty of
 ;;; tree-fib.
 
-;;; Next time we'll discuss combinatorials and higher-order
+;;; Next time we'll discuss combinators and higher-order
 ;;; procedures.
