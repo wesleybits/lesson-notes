@@ -112,7 +112,15 @@
                '()
                (rest table)))))
 
+(define (hashes->table headers hashes)
+  (map (λ (row)
+         (map (λ (header) (hash-ref row header))
+              headers))
+       hashes))
+
 (provide csv->table
          table->csv
          write-csv
-         read-csv)
+         read-csv
+         table->hashes
+         hashes->table)
