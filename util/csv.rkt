@@ -113,10 +113,11 @@
                (rest table)))))
 
 (define (hashes->table headers hashes)
-  (map (λ (row)
-         (map (λ (header) (hash-ref row header))
-              headers))
-       hashes))
+  (cons headers
+        (map (λ (row)
+               (map (λ (header) (hash-ref row header))
+                    headers))
+             hashes)))
 
 (provide csv->table
          table->csv
