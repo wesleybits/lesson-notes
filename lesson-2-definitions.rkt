@@ -33,7 +33,8 @@
 ;;; want refer to my name, I can just use "my-name", because to
 ;;; Racket, they're the same thing now that I've defined it.
 
-(displayln my-name)
+(display my-name)
+(newline)
 
 (display my-name)
 (display " isn't all that bad a guy!")
@@ -65,7 +66,7 @@
 ;;; symbol of your own to name it, but name it in such a way that it's
 ;;; clear to a stranger what it represents.
 
-;;; Problem 3: I'm gonna define somethings for you. Don't worry about
+;;; Problem 3: I'm gonna define some things for you. Don't worry about
 ;;; it... yet.
 
 ;; Integrates things, takes a lower bound, and upper bound, a
@@ -100,9 +101,9 @@
 
 ;;; This takes an awful long time to do. Define someplace to put
 ;;; little-gamma so we don't have to deal with this awfulness more
-;;; than once. Bonus points if you use "delay". More bonus points if
-;;; you looked it up. Even more bonus points if you've got the docs
-;;; open when you asked me about it.
+;;; than once. Bonus points if you use "delay" to make it faster. More
+;;; bonus points if you looked up "delay". Even more bonus points if
+;;; you've got the docs open when you asked me about it.
 
 ;;;;;;;;;;;;;;;;;;
 ;;; PROCEDURES ;;;
@@ -146,7 +147,7 @@
 ;;; what the complaint looks like.
 
 ;;; There are some erring examples for you. Delete the ";;" when you
-;;; want to see the error, and put them back when done with it.
+;;; want to see the error, and put them back when you're done with it.
 ;; (square)                 ; to few arguments
 ;; (square 1 2)             ; to many arguments
 ;; (square 1 2 3)           ; adding more arguments does not fix "too many arguments"
@@ -165,9 +166,17 @@
 (define (sum x y)
   (+ x y))
 
+;;; Like this
+(sum 100 13)                            ; <- Gives 113
+(sum 10+13i 2)                          ; <- Gives 12+13i
+
 ;;; This will take three for its three parameters.
 (define (in-order? littlest middlest biggest)
   (< littlest middlest biggest))
+
+;;; Like this
+(in-order? 1 2 3)                       ; <- Gives #t
+(in-order? 13 5 13)                     ; <- Gives #f
 
 ;;; Now let's practice defining functions.
 
@@ -194,9 +203,19 @@
 
 ;;; Define an averaging function that averages two numbers.
 
-;;; Problem 7: Absolute values are a weirdly useful thing. Find a way
-;;; to define the absolute value function, and do that. Don't call it
-;;; "abs" since we're doing programming, not crunches.
+;;; Problem 7: Take a look at the following procedure:
+(define (absolute-value x)
+  ((if (< x 0) - +)
+   0
+   x))
+
+;;; What's its signature?
+;;; What's its name?
+;;; How many parameters does it take?
+;;; What's its body?
+;;; Bonus: what kinds of parameters does it take?
+;;; Bonus: what does this procedure do (in simple terms)?
+;;; Bonus: why does this procedure work?
 
 ;;; Problem 8: Absolute differences are a useful thing. If you're not
 ;;; sure what they are, check it out on Google.
