@@ -3,7 +3,7 @@
          parser-tools/yacc
          (prefix-in : parser-tools/lex-sre))
 
-;;; CSV MAKERS
+;;; CSV MAKER
 
 (define (write-csv table [out (current-output-port)])
   ((compose
@@ -40,6 +40,9 @@
            (λ (s) (regexp-replace #px"\"$" s ""))
            (λ (s) (regexp-replace #px"^\"" s ""))))
 
+(define (strip-quotes str)
+  (substring str 1 (sub1 (string-length str))))
+
 (define-tokens csv-data
   (DATUM))
 
@@ -57,8 +60,7 @@
    [(:: #\" (:+ (:or (:: #\" #\")
                      (:~ #\")))
         #\")
-    (token-DATUM (or (string->number
-                      (substring lexeme 1 (sub1 (string-length lexeme))))
+    (token-DATUM (or (string->number (strip-quotes lexeme))
                      (csv-unescape lexeme)))]
    ["\"\""
     (token-EMPTY)]
@@ -92,6 +94,24 @@
 (define (csv->table filename)
   (with-input-from-file filename #:mode 'text
     (λ () (read-csv))))
+
+(define (table->hashes table)
+  (define (make-row-hash row headers)
+    (foldr (λ (column header hsh)
+             (hash-set hsh header column))
+           (make-immutable-hash)
+           row
+           headers))
+
+  (if (empty? table)
+      (values '() '())
+      (let ([headers (first table)])
+        (values headers
+                (foldr (λ (row hashes)
+                         (cons (make-row-hash row headers)
+                               hashes))
+                       '()
+                       (rest table))))))
 
 (provide csv->table
          table->csv
