@@ -104,14 +104,13 @@
            headers))
 
   (if (empty? table)
-      (values '() '())
+      '()
       (let ([headers (first table)])
-        (values headers
-                (foldr (λ (row hashes)
-                         (cons (make-row-hash row headers)
-                               hashes))
-                       '()
-                       (rest table))))))
+        (foldr (λ (row hashes)
+                 (cons (make-row-hash row headers)
+                       hashes))
+               '()
+               (rest table)))))
 
 (provide csv->table
          table->csv
